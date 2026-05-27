@@ -58,3 +58,7 @@ Example:
 <section b-if="showFeatured"></section>
 <section b-if="!showFeatured"></section>
 ```
+
+## Script Execution
+
+`<script>`  tags are executed normally after page buld in Chrome. Browser behavior require further investigation.
