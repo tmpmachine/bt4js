@@ -1,6 +1,6 @@
 // @ts-check
 
-// version: 6.18
+// version: 6.19
 function appBuilder(options) {
 	// tags: #vars
 	let $ = document.querySelector.bind(document);
@@ -328,8 +328,16 @@ function appBuilder(options) {
 
 		removeConditionalWidgets(devTemplate, _globalData);
 		fillDataSlots(devTemplate, _globalData);
-		processSection();
-		processWidget();
+
+		let processedCount = 0;
+
+		// A rendered widget template can have a b-section,
+		// and that section can render widgets.
+		// Stop after a pass where neither processor replaces anything.
+		do {
+			processedCount = processSection();
+			processedCount += processWidget();
+		} while (processedCount > 0);
 	}
 
 	function fillDataSlots(containerEl, data) {
@@ -440,12 +448,13 @@ function appBuilder(options) {
 	// tags: #section
 	function processSection() {
 		let nodes = devTemplate.querySelectorAll('b-section');
+		let processedCount = 0;
 
 		for (let node of nodes) {
 			let sectionId = node.getAttribute('id');
-			let sectionContainer = dataDoc.querySelector(`.section#${sectionId}`);
+			let sectionContainer = dataDoc.getElementById(sectionId);
 
-			if (!sectionContainer) {
+			if (!sectionContainer?.classList.contains('section')) {
 				continue;
 			}
 
@@ -481,11 +490,16 @@ function appBuilder(options) {
 			});
 
 			node.remove();
+			processedCount++;
 		}
+
+		return processedCount;
 	}
 
 	// #widgets
 	function processWidget() {
+		let processedCount = 0;
+
 		// keep processing to handle nested b-widget tags
 		while (true) {
 			let nodes = devTemplate.querySelectorAll('b-widget');
@@ -499,17 +513,19 @@ function appBuilder(options) {
 				let widgetData = widgetsMap.get(widgetId);
 				let templateNode =
 					devTemplate.querySelector(`template#${templateId}`) ||
-					devTemplate.querySelector(`template#${widgetType}:not([section])`);
+					devTemplate.querySelector(`template#${widgetType}:not([b-section])`);
 
 				if (!templateNode) {
 					console.log(`Widget template not found for widget:`, widgetId);
 					node.remove();
+					processedCount++;
 					continue;
 				}
 
 				if (!widgetData) {
 					console.log(`WidgetData with ID ${widgetId} not found.`);
 					node.remove();
+					processedCount++;
 					continue;
 				}
 
@@ -523,8 +539,11 @@ function appBuilder(options) {
 
 				node.parentNode.insertBefore(childNode, node);
 				node.remove();
+				processedCount++;
 			}
 		}
+
+		return processedCount;
 	}
 
 	function findTemplate(parentTemplate, target) {
